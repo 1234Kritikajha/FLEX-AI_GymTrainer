@@ -1,0 +1,10 @@
+path: ./dataset
+train: images/train
+val: images/val
+test: images/test
+
+# Keypoint configuration for COCO 17 Keypoints
+kpt_shape: [17, 3] # [number of keypoints, visibility/coordinates]
+
+names:
+  0: person
