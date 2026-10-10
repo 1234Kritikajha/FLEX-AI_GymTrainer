@@ -1,137 +1,119 @@
-<<<<<<< HEAD
-# FLEX AI Trainer — Full Body Exercise Coach
+# FLEX AI Trainer — Hybrid Vision AI & Exercise Coach
 
-## What this version adds
+FLEX AI Trainer is a real-time computer vision fitness coaching application. It combines **YOLOv8-Pose**, a custom lightweight **Conv1D Neural Network (FlexCNN)**, interpretable **biomechanical angle rules**, **Finite State Machines (FSM)** for rep counting, and **asynchronous voice feedback**.
 
-- English-only voice instructions and on-screen coaching.
-- Full-body YOLOv8-Pose skeleton with 17 keypoints.
-- Exercise selector:
-  1. Squat
-  2. Bicep Curl
-  3. Push-up
-  4. Tricep Extension
-  5. Glute Kickback
-  6. Crunch
-  7. Plank
-  8. Hip Bridge
-- Exercise-specific movement state machines.
-- Rep counting for the rep-based exercises.
-- Plank hold timer instead of fake rep counting.
-- Exercise-specific setup instructions and form feedback.
-- Optional Gemini English coaching.
-- Gemini never controls the rep counter.
-- Offline pyttsx3 coaching still works without Gemini.
+> 📖 **Full Technical Documentation:** For comprehensive architecture diagrams, component specifications, and developer guides, see [DOCUMENTATION.md](file:///Users/navinkumarjha/Documents/Personal%20Gym%20Trainer/FLEX-AI_GymTrainer/DOCUMENTATION.md).
 
-## Important accuracy note
+---
 
-This is an MVP based on 2D webcam pose geometry. Accuracy depends heavily on camera angle,
-lighting, visibility of the full body, clothing, occlusion, and exercise technique.
+## Architecture Overview
 
-For best results:
-- Keep the entire body inside the camera frame.
-- Use the recommended camera angle shown in the application.
-- Avoid multiple people in the frame.
-- Keep the camera stable.
-- For floor exercises, use a side view.
-
-The current version uses deterministic angle/state rules rather than claiming that an
-untrained CNN/LSTM model is already available.
-
-## Setup
-
-### 1. Enter the project folder
-
-```bash
-cd FLEX_AI_TRAINER_FULL_BODY
+```text
+WEBCAM
+   ↓
+YOLOv8-Pose (17 COCO Keypoints)
+   ↓
+Keypoint Preprocessing (Confidence Filtering, Body Normalization, EMA Smoothing)
+   ↓
+FlexCNN Exercise Classifier (Conv1D Neural Network)
+   ↓
+Decision Engine (Selected vs. Detected Exercise Verification, Thresholding)
+   ↓
+Biomechanical Rules & FSM (Form Evaluation & Rep Counting)
+   ↓
+Text & Non-Blocking Voice Feedback (pyttsx3 Asynchronous Engine)
 ```
 
-### 2. Create/activate your virtual environment
+### Module Responsibilities
+* **YOLOv8-Pose**: Responsible strictly for 2D human pose detection and 17 body keypoint extraction.
+* **Keypoint Processor**: Filters low-confidence joints, translates coordinates relative to body center, normalizes scale by torso length, and applies temporal smoothing.
+* **FlexCNN**: Recognizes exercise identity from normalized 17-keypoint sequences. Does NOT directly generate natural language.
+* **Decision Engine**: Verifies that the user's movement matches the selected exercise before permitting rep counting or exercise-specific feedback.
+* **Biomechanics + FSM**: Interpretable geometry rules compute joint angles, enforce form boundaries, and track movement phase transitions for rep validation.
+* **Voice Engine**: Delivers non-blocking audio alerts with cooldown debouncing.
 
-Example:
+---
 
+## Supported Exercises (9 Canonical Movements)
+
+1. **Squat** (`squat`) — Knee & back angle state machine (`STANDING`, `DESCENDING`, `BOTTOM`, `ASCENDING`).
+2. **Bicep Curl** (`bicep_curl`) — Elbow angle tracking (`DOWN`, `UP`).
+3. **Push-Up** (`pushup`) — Elbow depth & body alignment check (`UP`, `DOWN`).
+4. **Lunge** (`lunge`) — Front knee angle tracking (`STANDING`, `DOWN`, `BOTTOM`, `UP`).
+5. **Plank** (`plank`) — Body line alignment & hold duration timer (`PLANK_HOLD`).
+6. **Glute Bridge** (`glute_bridge`) — Hip extension tracking (`DOWN`, `UP`).
+7. **Crunch** (`crunch`) — Torso flexion angle tracking (`DOWN`, `UP`).
+8. **Shoulder Press** (`shoulder_press`) — Overhead elbow extension tracking (`DOWN`, `UP`).
+9. **Tricep Extension** (`tricep_extension`) — Elbow bend to extension tracking (`BENT`, `EXTENDED`).
+
+---
+
+## Model Locations
+
+* **Pretrained YOLO Model**: `models/pretrained/yolov8n-pose.pt`
+* **Trained Pose Model**: `models/trained/flex_pose_best.pt`
+* **Trained CNN Model**: `models/trained/flex_cnn_best.pt`
+* **Class Mapping Config**: `models/trained/exercise_classes.json`
+
+---
+
+## Setup & Running
+
+### 1. Activate Environment
 ```bash
-python -m venv .venv
 source .venv/bin/activate
 ```
 
-### 3. Install dependencies
-
+### 2. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Put YOLO model in the project folder
-
-Make sure this file exists:
-
-```text
-yolov8n-pose.pt
-```
-
-If your existing project already has it, copy it here.
-
-### 5. Configure Gemini (optional)
-
-```bash
-cp .env.example .env
-```
-
-Then put your NEW Gemini API key in `.env`:
-
-```env
-GEMINI_API_KEY=YOUR_NEW_KEY_HERE
-GEMINI_MODEL=gemini-2.5-flash
-```
-
-Never commit `.env` to Git.
-
-If Gemini is unavailable, FLEX still works with offline English coaching.
-
-## Run
-
+### 3. Run the Application
 ```bash
 python trainer.py
 ```
 
-Choose an exercise from the menu.
+### Keyboard Controls
+* Press `1` – `9` to switch active exercise:
+  * `[1]` Squat
+  * `[2]` Bicep Curl
+  * `[3]` Push-Up
+  * `[4]` Lunge
+  * `[5]` Plank
+  * `[6]` Glute Bridge
+  * `[7]` Crunch
+  * `[8]` Shoulder Press
+  * `[9]` Tricep Extension
+* Press `q` or `ESC` to quit.
 
-### Controls
+---
 
-- `Q` = return to exercise menu / quit
-- `ESC` = quit current exercise
+## Retraining & Pipeline Orchestration
 
-## Exercise counting
+You can execute the automated retraining & validation pipeline:
 
-### Squat
-Tracks knee angle through down -> bottom -> up -> standing.
+```bash
+python training/train_all.py
+```
 
-### Bicep Curl
-Tracks elbow angle through extension -> curl -> extension.
+Or run individual pipeline steps:
 
-### Push-up
-Tracks elbow bend -> bottom -> full extension.
+1. **Inspect Pose Dataset**: `python training/prepare_dataset.py`
+2. **Train Pose Model**: `python training/train_pose.py`
+3. **Validate Pose Model**: `python training/validate_pose.py`
+4. **Prepare CNN Features**: `python training/prepare_cnn_dataset.py`
+5. **Train CNN Classifier**: `python training/train_cnn.py`
+6. **Validate CNN Classifier**: `python training/validate_cnn.py`
+7. **Test CNN Inference**: `python training/test_cnn.py`
+8. **Run Verification Test Suite**: `python test_pipeline.py`
 
-### Tricep Extension
-Tracks elbow bend -> extension.
+---
 
-### Glute Kickback
-Uses side-view hip movement to detect kickback -> return.
+## How to Add a New Exercise
 
-### Crunch
-Uses side-view hip/torso geometry to detect crunch -> return.
-
-### Hip Bridge
-Tracks hip angle through bridge-up -> controlled return.
-
-### Plank
-A plank is time-based, so FLEX reports hold time and best hold time rather than inventing reps.
-
-## Security
-
-If an API key has ever been pasted into a chat, source file, screenshot, or Git repository,
-treat it as exposed. Revoke/rotate it and create a new key.
-
-Do not put secrets into `trainer.py`.
-=======
-# GYM-Trainer
->>>>>>> fc810b68cc8e3c03b9596e9acb6f0fca34a3865d
+1. **Add Canonical Name**: Add the new exercise identifier (e.g. `lateral_raise`) to `CANONICAL_EXERCISES` in `config.py`.
+2. **Create Analyzer Class**: Subclass `BaseAnalyzer` in `src/exercise_analyzer.py` implementing `process(self, kpts)`.
+3. **Register in Factory**: Register your analyzer class in `ExerciseAnalyzerFactory._analyzers` in `src/exercise_analyzer.py`.
+4. **Add Kinematics to Dataset Prep**: Update `generate_synthetic_exercise_keypoints()` in `training/prepare_cnn_dataset.py` with joint kinematics.
+5. **Retrain CNN**: Run `python training/train_all.py` to retrain `flex_cnn_best.pt`.

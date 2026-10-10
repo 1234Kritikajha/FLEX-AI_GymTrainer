@@ -1,0 +1,24 @@
+{
+  "class_to_idx": {
+    "squat": 0,
+    "bicep_curl": 1,
+    "pushup": 2,
+    "lunge": 3,
+    "plank": 4,
+    "glute_bridge": 5,
+    "crunch": 6,
+    "shoulder_press": 7,
+    "tricep_extension": 8
+  },
+  "idx_to_class": {
+    "0": "squat",
+    "1": "bicep_curl",
+    "2": "pushup",
+    "3": "lunge",
+    "4": "plank",
+    "5": "glute_bridge",
+    "6": "crunch",
+    "7": "shoulder_press",
+    "8": "tricep_extension"
+  }
+}
